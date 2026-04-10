@@ -1,0 +1,19 @@
+{
+  "http": {
+    "port": 8081
+  },
+  "service": {
+    "name": "user-service",
+    "version": "1.0.0"
+  },
+  "jwt": {
+    "secret": "your-256-bit-secret-key-change-in-production",
+    "expirationHours": 24
+  },
+  "database": {
+    "mongo": {
+      "connection_string": "mongodb://localhost:27017",
+      "db_name": "ecommerce_users"
+    }
+  }
+}

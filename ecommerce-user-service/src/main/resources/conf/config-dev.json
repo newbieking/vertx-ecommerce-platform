@@ -1,0 +1,11 @@
+{
+  "http": {
+    "port": 8081
+  },
+  "database": {
+    "mongo": {
+      "connection_string": "mongodb://localhost:27017",
+      "db_name": "ecommerce_users"
+    }
+  }
+}
