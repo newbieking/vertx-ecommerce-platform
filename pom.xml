@@ -48,6 +48,23 @@
                 <scope>import</scope>
             </dependency>
 
+            <!-- Service Discovery -->
+            <dependency>
+                <groupId>io.vertx</groupId>
+                <artifactId>vertx-service-discovery</artifactId>
+                <version>${vertx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.vertx</groupId>
+                <artifactId>vertx-service-discovery-backend-consul</artifactId>
+                <version>${vertx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.vertx</groupId>
+                <artifactId>vertx-circuit-breaker</artifactId>
+                <version>${vertx.version}</version>
+            </dependency>
+
             <!-- 测试 -->
             <dependency>
                 <groupId>org.junit.jupiter</groupId>

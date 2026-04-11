@@ -1,0 +1,42 @@
+### 网关地址（统一变量）
+@gatewayHost = http://localhost:8080
+@userServiceHost = http://localhost:8081
+
+### 2. 通过网关注册（无需认证）
+POST {{gatewayHost}}/api/users/register
+Content-Type: application/json
+
+{
+  "username": "bob",
+  "email": "bob@example.com",
+  "password": "123456"
+}
+
+> {%
+    client.global.set("TOKEN", response.body.data.token);
+%}
+
+
+### 3. 通过网关登录（无需认证）
+# 登录后自动把 token 存到全局变量，后面直接用
+POST {{gatewayHost}}/api/users/login
+Content-Type: application/json
+
+{
+  "email": "bob@example.com",
+  "password": "123456"
+}
+
+> {%
+    client.global.set("TOKEN", response.body.data.token);
+%}
+
+### 4. 带 Token 访问当前用户（网关转发，正常返回）
+GET {{gatewayHost}}/api/users/me
+Authorization: Bearer {{TOKEN}}
+
+### 5. 不带 Token 访问（网关拦截 401）
+GET {{gatewayHost}}/api/users/me
+
+### 6. 直接访问用户服务（预期被阻止 401）
+GET {{userServiceHost}}/api/users/me

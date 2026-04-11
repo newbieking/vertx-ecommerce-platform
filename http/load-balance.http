@@ -1,0 +1,50 @@
+### 网关地址（统一变量）
+@gatewayHost = http://localhost:8080
+@userServiceHost = http://localhost:8081
+
+### 2. 通过网关注册（无需认证）
+POST {{gatewayHost}}/api/users/register
+Content-Type: application/json
+
+{
+  "username": "bob",
+  "email": "bob@example.com",
+  "password": "123456"
+}
+
+> {%
+    client.global.set("TOKEN", response.body.data.token);
+%}
+
+
+### 3. 通过网关登录（无需认证）
+# 登录后自动把 token 存到全局变量，后面直接用
+POST {{gatewayHost}}/api/users/login
+Content-Type: application/json
+
+{
+  "email": "bob@example.com",
+  "password": "123456"
+}
+
+> {%
+    client.global.set("TOKEN", response.body.data.token);
+%}
+
+
+### 循环调用网关健康检查，测试负载均衡（轮询/随机）
+### 测试网关负载均衡 - 请求 1
+GET http://localhost:8080/api/users/me
+Authorization: Bearer {{TOKEN}}
+
+### 测试网关负载均衡 - 请求 2
+GET http://localhost:8080/api/users/health
+
+### 测试网关负载均衡 - 请求 3
+GET http://localhost:8080/api/users/health
+
+### 测试网关负载均衡 - 请求 4
+GET http://localhost:8080/api/users/health
+
+### 测试网关负载均衡 - 请求 5
+GET http://localhost:8080/api/users/health

@@ -7,7 +7,9 @@
     "version": "1.0.0"
   },
   "jwt": {
-    "secret": "your-256-bit-secret-key-change-in-production"
+    "secret": "your-256-bit-secret-key-change-in-production",
+    "expirationHours": 24,
+    "issuer": "ecommerce-platform"
   },
   "routes": [
     {

@@ -2,7 +2,37 @@
   "http": {
     "port": 8080
   },
+  "service": {
+    "name": "api-gateway",
+    "version": "1.0.0"
+  },
+  "jwt": {
+    "secret": "your-256-bit-secret-key-change-in-production",
+    "expirationHours": 24,
+    "issuer": "ecommerce-platform"
+  },
+  "proxy": {
+    "timeout": 5000
+  },
+  "routes": [
+    {
+      "path": "/api/users/*",
+      "target": "http://localhost:8081",
+      "stripPrefix": false,
+      "auth": true
+    },
+    {
+      "path": "/api/users/register",
+      "target": "http://localhost:8081",
+      "auth": false
+    },
+    {
+      "path": "/api/users/login",
+      "target": "http://localhost:8081",
+      "auth": false
+    }
+  ],
   "log": {
-    "level": "DEBUG"
+    "level": "INFO"
   }
 }

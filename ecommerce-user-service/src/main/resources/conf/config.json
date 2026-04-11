@@ -8,7 +8,8 @@
   },
   "jwt": {
     "secret": "your-256-bit-secret-key-change-in-production",
-    "expirationHours": 24
+    "expirationHours": 24,
+    "issuer": "ecommerce-platform"
   },
   "database": {
     "mongo": {

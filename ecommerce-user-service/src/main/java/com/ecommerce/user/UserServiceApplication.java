@@ -1,11 +1,13 @@
 package com.ecommerce.user;
 
 import com.ecommerce.common.config.ConfigLoader;
+import com.ecommerce.common.discovery.ServiceRegistrar;
 import com.ecommerce.common.model.ApiResponse;
 import com.ecommerce.common.model.User;
 import com.ecommerce.common.util.JwtUtil;
 import com.ecommerce.common.util.PasswordUtil;
 import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Future;
 import io.vertx.core.Launcher;
 import io.vertx.core.Promise;
 import io.vertx.core.http.HttpServer;
@@ -14,7 +16,6 @@ import io.vertx.ext.auth.jwt.JWTAuth;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.handler.BodyHandler;
-import io.vertx.ext.web.handler.JWTAuthHandler;
 import io.vertx.ext.web.handler.LoggerHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,6 +35,8 @@ public class UserServiceApplication extends AbstractVerticle {
     private JwtUtil jwtUtil;
     private JWTAuth jwtAuth;
 
+    private ServiceRegistrar registrar;
+
     public static void main(String[] args) {
         Launcher.executeCommand("run", UserServiceApplication.class.getName());
     }
@@ -42,14 +45,37 @@ public class UserServiceApplication extends AbstractVerticle {
     public void start(Promise<Void> startPromise) {
         ConfigLoader.load(vertx)
                 .onSuccess(config -> {
-                    jwtUtil = new JwtUtil(vertx);
+                    this.registrar = new ServiceRegistrar(vertx, config);
+                    JsonObject jwt = config.getJsonObject("jwt");
+                    jwtUtil = new JwtUtil(vertx, JwtUtil.JwtUtilOptions.fromJson(jwt));
                     jwtAuth = jwtUtil.getAuthProvider();
-                    startServer(config, startPromise);
+                    startServer(config, startPromise)
+                            .compose(server -> {
+                                // 服务启动成功后注册到 Consul
+                                int port = server.actualPort();
+                                String host = config.getString("service.host", "localhost");
+                                String serviceName = config.getJsonObject("service")
+                                        .getString("name", "user-service");
+
+                                JsonObject metadata = new JsonObject()
+                                        .put("version", "1.0.0")
+                                        .put("region", "default");
+
+                                return registrar.registerHttpService(serviceName, host, port, metadata);
+                            })
+                            .onComplete(startPromise);
                 })
                 .onFailure(startPromise::fail);
     }
 
-    private void startServer(JsonObject config, Promise<Void> startPromise) {
+    @Override
+    public void stop(Promise<Void> stopPromise) throws Exception {
+        logger.info("Unregistering service...");
+        registrar.unregister()
+                .onComplete(v -> stopPromise.complete());
+    }
+
+    private Future<HttpServer> startServer(JsonObject config, Promise<Void> startPromise) {
         int port = config.getJsonObject("http", new JsonObject())
                 .getInteger("port", 8081);
 
@@ -63,21 +89,16 @@ public class UserServiceApplication extends AbstractVerticle {
         router.post("/api/users/login").handler(this::login);
 
         // ========== 需要认证的接口 ==========
-        // 使用 JWTAuthHandler 拦截
-        router.route("/api/users/me").handler(JWTAuthHandler.create(jwtAuth));
+        router.route("/api/users/*").handler(this::parseUserFromHeader);
         router.get("/api/users/me").handler(this::getCurrentUser);
-
-        router.route("/api/users/*").handler(JWTAuthHandler.create(jwtAuth));
         router.get("/api/users").handler(this::getAllUsers);
         router.get("/api/users/:id").handler(this::getUserById);
 
         // 错误处理
-        router.route().handler(ctx -> {
-            ctx.response()
-                    .setStatusCode(404)
-                    .putHeader("content-type", "application/json")
-                    .end(ApiResponse.error("Not Found").toJson().encode());
-        });
+        router.route().handler(ctx -> ctx.response()
+                .setStatusCode(404)
+                .putHeader("content-type", "application/json")
+                .end(ApiResponse.error("Not Found").toJson().encode()));
 
         // 全局错误处理器
         router.errorHandler(500, ctx -> {
@@ -88,7 +109,7 @@ public class UserServiceApplication extends AbstractVerticle {
                     .end(ApiResponse.error("Internal Server Error").toJson().encode());
         });
 
-        vertx.createHttpServer()
+        return vertx.createHttpServer()
                 .requestHandler(router)
                 .listen(port)
                 .onSuccess(s -> {
@@ -98,7 +119,22 @@ public class UserServiceApplication extends AbstractVerticle {
                 .onFailure(startPromise::fail);
     }
 
+
     // ========== 处理器方法 ==========
+    private void parseUserFromHeader(RoutingContext ctx) {
+        String userId = ctx.request().getHeader("X-User-Id");
+        String username = ctx.request().getHeader("X-Username");
+        String role = ctx.request().getHeader("X-User-Role");
+
+        if (userId != null) {
+            ctx.put("userId", userId);
+            ctx.put("username", username);
+            ctx.put("role", role);
+            logger.debug("User from gateway: {} ({})", username, userId);
+        }
+
+        ctx.next();
+    }
 
     private void healthCheck(RoutingContext ctx) {
         ctx.response()
@@ -236,14 +272,15 @@ public class UserServiceApplication extends AbstractVerticle {
      * Header: Authorization: Bearer <token>
      */
     private void getCurrentUser(RoutingContext ctx) {
-        io.vertx.ext.auth.User user = ctx.user();
-        if (user == null) {
+        String userId = ctx.get("userId");
+        if (userId == null) {
+            // 如果直接访问用户服务（非网关），返回错误提示
             ctx.response().setStatusCode(401)
-                    .end(ApiResponse.error(401, "Unauthorized").toJson().encode());
+                    .end(ApiResponse.error(401, "Please access via API Gateway").toJson().encode());
             return;
         }
 
-        String userId = user.get("sub");
+
         User currentUser = usersById.get(userId);
 
         if (currentUser == null) {
@@ -262,8 +299,7 @@ public class UserServiceApplication extends AbstractVerticle {
      */
     private void getAllUsers(RoutingContext ctx) {
         // 简单权限检查
-        io.vertx.ext.auth.User user = ctx.user();
-        String role = user.get("role");
+        String role =  ctx.get("role");
 
         if (!"ADMIN".equals(role)) {
             ctx.response().setStatusCode(403)

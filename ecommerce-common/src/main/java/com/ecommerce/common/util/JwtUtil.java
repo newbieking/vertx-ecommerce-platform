@@ -8,20 +8,24 @@ import io.vertx.ext.auth.jwt.JWTAuthOptions;
 
 public class JwtUtil {
 
-    // 生产环境应从配置文件/环境变量读取，或使用非对称加密
-    private static final String SECRET = "your-256-bit-secret-key-change-in-production";
-    private static final String ISSUER = "ecommerce-platform";
-    private static final long EXPIRATION_HOURS = 24;
-
     private final JWTAuth jwtAuth;
 
-    public JwtUtil(Vertx vertx) {
+    private final JwtUtilOptions options;
+
+    public record JwtUtilOptions(String secret, String issuer, long expirationHours) {
+        public static JwtUtilOptions fromJson(JsonObject json) {
+            return new JwtUtilOptions(json.getString("secret"), json.getString("issuer"), json.getLong("expirationHours"));
+        }
+    }
+
+    public JwtUtil(Vertx vertx, JwtUtilOptions options) {
         JWTAuthOptions config = new JWTAuthOptions()
                 .addPubSecKey(new PubSecKeyOptions()
                         .setAlgorithm("HS256")
-                        .setBuffer(SECRET));
+                        .setBuffer(options.secret));
 
         this.jwtAuth = JWTAuth.create(vertx, config);
+        this.options = options;
     }
 
     /**
@@ -32,9 +36,9 @@ public class JwtUtil {
                 .put("sub", userId)           // subject: 用户ID
                 .put("username", username)
                 .put("role", role)
-                .put("iss", ISSUER)           // issuer
+                .put("iss", this.options.issuer)           // issuer
                 .put("iat", System.currentTimeMillis() / 1000)  // issued at
-                .put("exp", System.currentTimeMillis() / 1000 + (EXPIRATION_HOURS * 3600)); // expiration
+                .put("exp", System.currentTimeMillis() / 1000 + (this.options.expirationHours * 3600)); // expiration
 
         return jwtAuth.generateToken(claims);
     }
