@@ -38,7 +38,9 @@ GET http://localhost:8080/api/users/me
 Authorization: Bearer {{TOKEN}}
 
 ### 测试网关负载均衡 - 请求 2
-GET http://localhost:8080/api/users/health
+GET http://localhost:8081/health
+### 测试网关负载均衡 - 请求 2
+GET http://localhost:8082/health
 
 ### 测试网关负载均衡 - 请求 3
 GET http://localhost:8080/api/users/health

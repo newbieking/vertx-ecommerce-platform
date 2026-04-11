@@ -1,0 +1,46 @@
+### 商品服务接口（通过网关访问）
+@gateway = http://localhost:8080
+
+### 网关地址（统一变量）
+@gatewayHost = http://localhost:8080
+
+### 3. 通过网关登录（无需认证）
+# 登录后自动把 token 存到全局变量，后面直接用
+POST {{gatewayHost}}/api/users/login
+Content-Type: application/json
+
+{
+  "email": "bob@example.com",
+  "password": "123456"
+}
+
+> {%
+    client.global.set("TOKEN", response.body.data.token);
+%}
+
+
+
+### 查询商品列表
+GET {{gateway}}/api/products
+Authorization: Bearer {{TOKEN}}
+
+### 查询单个商品（测试缓存）
+GET {{gateway}}/api/products/SKU006
+Authorization: Bearer {{TOKEN}}
+
+### 按分类查询商品
+GET {{gateway}}/api/products/category/手机数码
+Authorization: Bearer {{TOKEN}}
+
+### 创建商品
+POST {{gateway}}/api/products
+Content-Type: application/json
+Authorization: Bearer {{TOKEN}}
+
+{
+  "sku": "SKU008",
+  "name": "测试商品",
+  "price": 999.00,
+  "stock": 100,
+  "category": "测试分类"
+}

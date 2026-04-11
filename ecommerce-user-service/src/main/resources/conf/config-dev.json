@@ -4,6 +4,7 @@
   },
   "service": {
     "name": "user-service",
+    "host": "localhost",
     "version": "1.0.0"
   },
   "jwt": {
@@ -16,5 +17,9 @@
       "connection_string": "mongodb://localhost:27017",
       "db_name": "ecommerce_users"
     }
+  },
+  "consul": {
+    "host": "localhost",
+    "port": 8500
   }
 }

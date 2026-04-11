@@ -6,7 +6,9 @@ import com.ecommerce.common.util.JwtUtil;
 import com.ecommerce.gateway.discovery.ServiceResolver;
 import io.vertx.circuitbreaker.CircuitBreaker;
 import io.vertx.circuitbreaker.CircuitBreakerOptions;
-import io.vertx.core.*;
+import io.vertx.core.AbstractVerticle;
+import io.vertx.core.Launcher;
+import io.vertx.core.Promise;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
@@ -16,6 +18,7 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.auth.jwt.JWTAuth;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
+import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.LoggerHandler;
 import org.slf4j.Logger;
@@ -32,10 +35,10 @@ public class GatewayApplication extends AbstractVerticle {
     private static final Logger logger = LoggerFactory.getLogger(GatewayApplication.class);
 
     private JWTAuth jwtAuth;
-    private List<RouteConfig> routes = new ArrayList<>();
+    private final List<RouteConfig> routes = new ArrayList<>();
 
     // 无需认证的路径
-    private List<Pattern> publicPaths = new ArrayList<>();
+    private final List<Pattern> publicPaths = new ArrayList<>();
 
     private ServiceResolver serviceResolver;
 
@@ -253,9 +256,17 @@ public class GatewayApplication extends AbstractVerticle {
                                 }
                                 return req.send(ctx.body().buffer() != null ? ctx.body().buffer() : Buffer.buffer());
                             })
-                            .compose(resp -> resp.body().map(buffer ->
-                                    new JsonObject().put("status", resp.statusCode()).put("body", buffer)
-                            ))
+                            .compose(resp -> {
+                                        // 复制头信息
+                                        resp.headers().forEach(h -> {
+                                            if (!h.getKey().equalsIgnoreCase("Host")) {
+                                                ctx.response().putHeader(h.getKey(), h.getValue());
+                                            }
+                                        });
+                                        return resp.body().map(buffer ->
+                                                new JsonObject().put("status", resp.statusCode()).put("body", buffer));
+                                    }
+                            )
                             .onSuccess(promise::complete)
                             .onFailure(promise::fail);
                 })

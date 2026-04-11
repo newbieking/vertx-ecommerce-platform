@@ -1,0 +1,26 @@
+{
+  "http": {
+    "port": 8082
+  },
+  "service": {
+    "name": "product-service",
+    "host": "localhost"
+  },
+  "database": {
+    "mysql": {
+      "host": "localhost",
+      "port": 3306,
+      "database": "ecommerce_products",
+      "user": "ecommerce",
+      "password": "eco123"
+    },
+    "redis": {
+      "host": "localhost",
+      "port": 6379
+    }
+  },
+  "consul": {
+    "host": "localhost",
+    "port": 8500
+  }
+}

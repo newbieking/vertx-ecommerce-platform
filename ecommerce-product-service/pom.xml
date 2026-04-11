@@ -11,11 +11,11 @@
         <version>1.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>ecommerce-user-service</artifactId>
-    <name>User Service</name>
+    <artifactId>ecommerce-product-service</artifactId>
+    <name>Product Service</name>
 
     <properties>
-        <main.class>com.ecommerce.user.UserServiceApplication</main.class>
+        <main.class>com.ecommerce.product.ProductServiceApplication</main.class>
     </properties>
 
     <dependencies>
@@ -28,15 +28,17 @@
             <groupId>io.vertx</groupId>
             <artifactId>vertx-web</artifactId>
         </dependency>
+        <!-- MySQL 异步客户端 -->
         <dependency>
             <groupId>io.vertx</groupId>
-            <artifactId>vertx-mongo-client</artifactId>
+            <artifactId>vertx-mysql-client</artifactId>
         </dependency>
+        <!-- Redis -->
         <dependency>
             <groupId>io.vertx</groupId>
-            <artifactId>vertx-auth-jwt</artifactId>
+            <artifactId>vertx-redis-client</artifactId>
         </dependency>
-
+        <!-- 服务发现 -->
         <dependency>
             <groupId>io.vertx</groupId>
             <artifactId>vertx-service-discovery</artifactId>

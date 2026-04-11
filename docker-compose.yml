@@ -2,14 +2,46 @@ version: '3.8'
 
 services:
   consul:
-    image: consul:1.16
+    image: hashicorp/consul:1.16.1
     container_name: ecommerce-consul
     ports:
-      - "8500:8500"    # Web UI
-      - "8600:8600/udp" # DNS
-    command: consul agent -server -ui -node=server-1 -bootstrap-expect=1 -client=0.0.0.0
+      - "8500:8500"
+    command: consul agent -server -ui -node=server-1 -bootstrap-expect=1 -client=0.0.0.0 -data-dir=/consul/data
+    volumes:
+      - consul-data:/consul/data
     networks:
       - ecommerce-net
+
+  mysql:
+    image: mysql:8.0
+    container_name: ecommerce-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: ecommerce_products
+      MYSQL_USER: ecommerce
+      MYSQL_PASSWORD: eco123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./data/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ecommerce-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: ecommerce-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ecommerce-net
+
+volumes:
+  consul-data:
+  mysql_data:
+  redis_data:
 
 networks:
   ecommerce-net:

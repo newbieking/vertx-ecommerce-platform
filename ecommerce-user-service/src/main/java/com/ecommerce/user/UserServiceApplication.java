@@ -33,7 +33,6 @@ public class UserServiceApplication extends AbstractVerticle {
     private final Map<String, User> usersByUsername = new ConcurrentHashMap<>();
 
     private JwtUtil jwtUtil;
-    private JWTAuth jwtAuth;
 
     private ServiceRegistrar registrar;
 
@@ -48,12 +47,11 @@ public class UserServiceApplication extends AbstractVerticle {
                     this.registrar = new ServiceRegistrar(vertx, config);
                     JsonObject jwt = config.getJsonObject("jwt");
                     jwtUtil = new JwtUtil(vertx, JwtUtil.JwtUtilOptions.fromJson(jwt));
-                    jwtAuth = jwtUtil.getAuthProvider();
                     startServer(config, startPromise)
                             .compose(server -> {
                                 // 服务启动成功后注册到 Consul
                                 int port = server.actualPort();
-                                String host = config.getString("service.host", "localhost");
+                                String host = config.getJsonObject("service").getString("host", "localhost");
                                 String serviceName = config.getJsonObject("service")
                                         .getString("name", "user-service");
 

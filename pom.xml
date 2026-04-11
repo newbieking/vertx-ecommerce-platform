@@ -35,6 +35,7 @@
         <module>ecommerce-common</module>
         <module>ecommerce-api-gateway</module>
         <module>ecommerce-user-service</module>
+        <module>ecommerce-product-service</module>
     </modules>
 
     <dependencyManagement>

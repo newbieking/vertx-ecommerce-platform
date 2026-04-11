@@ -26,8 +26,8 @@ public class ServiceRegistrar {
                 .setBackendConfiguration(new JsonObject()
                         .put("backend", "consul")
                         .put("serviceName", config.getJsonObject("service").getString("name"))
-                        .put("host", config.getString("consul.host", "localhost"))
-                        .put("port", config.getInteger("consul.port", 8500))
+                        .put("host", config.getJsonObject("consul").getString("host", "localhost"))
+                        .put("port", config.getJsonObject("consul").getInteger("port", 8500))
                         .put("scanInterval", 2000)); // 健康检查间隔
 
         this.discovery = ServiceDiscovery.create(vertx, options);
