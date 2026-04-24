@@ -17,6 +17,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ServiceResolver {
 
     private static final Logger logger = LoggerFactory.getLogger(ServiceResolver.class);
+    public static final String DEFAULT_CONSUL_HOST = "localhost";
+    public static final int DEFAULT_CONSUL_PORT = 8500;
 
     private final Vertx vertx;
     private final ServiceDiscovery discovery;
@@ -30,8 +32,8 @@ public class ServiceResolver {
 
         ServiceDiscoveryOptions options = new ServiceDiscoveryOptions()
                 .setBackendConfiguration(new JsonObject()
-                        .put("host", config.getString("consul.host", "localhost"))
-                        .put("port", config.getInteger("consul.port", 8500)));
+                        .put("host", config.getJsonObject("consul").getString("host", DEFAULT_CONSUL_HOST))
+                        .put("port", config.getJsonObject("consul").getInteger("port", DEFAULT_CONSUL_PORT)));
 
         this.discovery = ServiceDiscovery.create(vertx, options);
 

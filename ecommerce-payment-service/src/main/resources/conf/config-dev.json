@@ -1,0 +1,15 @@
+{
+  "http": {
+    "port": 8085
+  },
+  "service": {
+    "name": "payment-service",
+    "host": "localhost"
+  },
+  "database": {
+  },
+  "consul": {
+    "host": "localhost",
+    "port": 8500
+  }
+}

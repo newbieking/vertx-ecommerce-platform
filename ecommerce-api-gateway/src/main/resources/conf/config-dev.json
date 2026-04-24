@@ -17,21 +17,45 @@
   "routes": [
     {
       "path": "/api/users/*",
-      "target": "http://localhost:8081",
+      "serviceName": "user-service",
       "stripPrefix": false,
       "auth": true
     },
     {
       "path": "/api/users/register",
-      "target": "http://localhost:8081",
+      "serviceName": "user-service",
       "auth": false
     },
     {
       "path": "/api/users/login",
-      "target": "http://localhost:8081",
+      "serviceName": "user-service",
       "auth": false
+    },
+    {
+      "path": "/api/products/*",
+      "serviceName": "product-service",
+      "auth": false
+    },
+    {
+      "path": "/api/orders/*",
+      "serviceName": "order-service",
+      "auth": true
+    },
+    {
+      "path": "/api/inventory/*",
+      "serviceName": "inventory-service",
+      "auth": true
+    },
+    {
+      "path": "/api/payments/*",
+      "serviceName": "payment-service",
+      "auth": true
     }
   ],
+  "consul": {
+    "host": "localhost",
+    "port": 8500
+  },
   "log": {
     "level": "INFO"
   }

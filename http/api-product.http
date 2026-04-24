@@ -1,46 +1,75 @@
-### 商品服务接口（通过网关访问）
-@gateway = http://localhost:8080
+### Product Service API Requests
+# 服务基础地址（可在环境变量中配置）
+@baseUrl = http://localhost:8082
 
-### 网关地址（统一变量）
-@gatewayHost = http://localhost:8080
+### ==============================================
+### 1. 健康检查接口
+### ==============================================
+GET {{baseUrl}}/health
+Accept: application/json
 
-### 3. 通过网关登录（无需认证）
-# 登录后自动把 token 存到全局变量，后面直接用
-POST {{gatewayHost}}/api/users/login
-Content-Type: application/json
+### ==============================================
+### 2. 商品查询接口（公开）
+### ==============================================
 
-{
-  "email": "bob@example.com",
-  "password": "123456"
-}
+### 分页查询商品列表（默认参数）
+GET {{baseUrl}}/api/products
+Accept: application/json
 
-> {%
-    client.global.set("TOKEN", response.body.data.token);
+### 分页查询商品列表（自定义分页+分类）
+GET {{baseUrl}}/api/products?page=1&size=5&category=手机数码
+Accept: application/json
+
+### 根据SKU查询单个商品
+GET {{baseUrl}}/api/products/SKU001
+Accept: application/json
+
+### 根据分类查询商品
+< {%
+    request.variables.set("category", encodeURIComponent("手机数码"));
 %}
 
+GET {{baseUrl}}/api/products/category/{{category}}
+Accept: application/json
 
-
-### 查询商品列表
-GET {{gateway}}/api/products
-Authorization: Bearer {{TOKEN}}
-
-### 查询单个商品（测试缓存）
-GET {{gateway}}/api/products/SKU006
-Authorization: Bearer {{TOKEN}}
-
-### 按分类查询商品
-GET {{gateway}}/api/products/category/手机数码
-Authorization: Bearer {{TOKEN}}
+### ==============================================
+### 3. 商品管理接口（需网关鉴权，测试用）
+### ==============================================
 
 ### 创建商品
-POST {{gateway}}/api/products
+POST {{baseUrl}}/api/products
 Content-Type: application/json
-Authorization: Bearer {{TOKEN}}
+Authorization: Bearer {JWT_TOKEN}  # 实际环境由网关校验
 
 {
-  "sku": "SKU008",
-  "name": "测试商品",
-  "price": 999.00,
+  "sku": "SKU001",
+  "name": "iPhone 15 Pro",
+  "description": "苹果最新旗舰手机",
+  "price": "7999.00",
   "stock": 100,
-  "category": "测试分类"
+  "category": "手机数码",
+  "status": 1
+}
+
+### 全量更新商品
+PUT {{baseUrl}}/api/products/SKU001
+Content-Type: application/json
+Authorization: Bearer {JWT_TOKEN}
+
+{
+  "name": "iPhone 15 Pro Max",
+  "description": "苹果超大杯旗舰",
+  "price": "8999.00",
+  "category": "手机数码",
+  "status": 1
+}
+
+### 仅更新商品库存（订单服务专用接口）
+PATCH {{baseUrl}}/api/products/SKU001/stock
+Content-Type: application/json
+Authorization: Bearer {JWT_TOKEN}
+
+# delta：库存变动量（正数增加，负数扣减）
+{
+  "delta": -10
 }

@@ -1,0 +1,22 @@
+{
+  "http": {
+    "port": 8083
+  },
+  "service": {
+    "name": "order-service",
+    "host": "localhost"
+  },
+  "database": {
+    "mysql": {
+      "host": "localhost",
+      "port": 3306,
+      "database": "ecommerce_orders",
+      "user": "ecommerce",
+      "password": "eco123"
+    }
+  },
+  "consul": {
+    "host": "localhost",
+    "port": 8500
+  }
+}

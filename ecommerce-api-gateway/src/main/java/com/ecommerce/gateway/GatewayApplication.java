@@ -18,7 +18,6 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.auth.jwt.JWTAuth;
 import io.vertx.ext.web.Router;
 import io.vertx.ext.web.RoutingContext;
-import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.LoggerHandler;
 import org.slf4j.Logger;
@@ -27,24 +26,26 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 public class GatewayApplication extends AbstractVerticle {
 
     private static final Logger logger = LoggerFactory.getLogger(GatewayApplication.class);
+    public static final int DEFAULT_PORT = 8080;
 
     private JWTAuth jwtAuth;
     private final List<RouteConfig> routes = new ArrayList<>();
 
-    // 无需认证的路径
+    /**无需认证的路径*/
     private final List<Pattern> publicPaths = new ArrayList<>();
 
     private ServiceResolver serviceResolver;
 
-    // 全局单例 HttpClient：复用连接池，避免资源泄漏
+    /**全局单例 HttpClient：复用连接池，避免资源泄漏*/
     private HttpClient httpClient;
-    // 熔断器缓存：每个服务实例一个熔断器，线程安全
+    /**熔断器缓存：每个服务实例一个熔断器，线程安全*/
     private final Map<String, CircuitBreaker> breakerCache = new ConcurrentHashMap<>();
 
     public static void main(String[] args) {
@@ -86,7 +87,7 @@ public class GatewayApplication extends AbstractVerticle {
             JsonObject route = routesConfig.getJsonObject(i);
             RouteConfig rc = new RouteConfig(
                     route.getString("path"),
-                    route.getString("target"),
+                    route.getString("serviceName"),
                     route.getBoolean("stripPrefix", false),
                     route.getBoolean("auth", true)
             );
@@ -94,17 +95,16 @@ public class GatewayApplication extends AbstractVerticle {
 
             // 无需认证的路径加入白名单
             if (!rc.auth) {
-                publicPaths.add(Pattern.compile(rc.path.replace("*", ".*")));
-                logger.info("Public route: {} -> {}", rc.path, rc.target);
+                publicPaths.add(rc.pathPattern);
+                logger.info("Public route: {} -> {}", rc.path, rc.serviceName);
             } else {
-                logger.info("Protected route: {} -> {}", rc.path, rc.target);
+                logger.info("Protected route: {} -> {}", rc.path, rc.serviceName);
             }
         }
     }
 
     private void startServer(JsonObject config, Promise<Void> startPromise) {
-        int port = config.getJsonObject("http", new JsonObject())
-                .getInteger("port", 8080);
+        int port = config.getJsonObject("http").getInteger("port", DEFAULT_PORT);
 
         Router router = Router.router(vertx);
         router.route().handler(LoggerHandler.create());
@@ -193,8 +193,8 @@ public class GatewayApplication extends AbstractVerticle {
     private void proxyRequest(RoutingContext ctx, JsonObject config) {
         String path = ctx.request().path();
         // 从路径解析服务名：/api/users/me -> user-service
-        String serviceName = extractServiceName(path);
-
+        Optional<RouteConfig> routeConfig = this.routes.stream().filter(it -> it.pathPattern.matcher(path).matches()).findFirst();
+        String serviceName = routeConfig.map(it->it.serviceName).orElse(null);
 
         if (serviceName == null) {
             ctx.response().setStatusCode(404)
@@ -281,14 +281,6 @@ public class GatewayApplication extends AbstractVerticle {
 
     }
 
-    private String extractServiceName(String path) {
-        // TODO 简单映射：/api/users/* -> user-service
-        if (path.startsWith("/api/users")) return "user-service";
-        if (path.startsWith("/api/products")) return "product-service";
-        if (path.startsWith("/api/orders")) return "order-service";
-        return null;
-    }
-
     private void healthCheck(RoutingContext ctx) {
         JsonObject health = new JsonObject()
                 .put("status", "UP")
@@ -303,15 +295,58 @@ public class GatewayApplication extends AbstractVerticle {
     // 路由配置内部类
     private static class RouteConfig {
         final String path;
-        final String target;
+        final Pattern pathPattern;
+        final String serviceName;
         final boolean stripPrefix;
         final boolean auth;
 
-        RouteConfig(String path, String target, boolean stripPrefix, boolean auth) {
-            this.path = path;
-            this.target = target;
+        RouteConfig(String path, String serviceName, boolean stripPrefix, boolean auth) {
+            String normalized = normalizePath(path);
+            this.path = normalized;
+            this.pathPattern = compilePattern(normalized);
+            this.serviceName = serviceName;
             this.stripPrefix = stripPrefix;
             this.auth = auth;
+        }
+
+        /**
+         * 路径标准化：去空白、去尾部斜杠、确保前导斜杠
+         */
+        private static String normalizePath(String raw) {
+            if (raw == null || raw.isBlank()) {
+                throw new IllegalArgumentException("path must not be empty");
+            }
+            String trimmed = raw.trim();
+            // 保留开头的 /，去掉末尾的 /
+            if (trimmed.endsWith("/") && trimmed.length() > 1) {
+                trimmed = trimmed.substring(0, trimmed.length() - 1);
+            }
+            if (!trimmed.startsWith("/")) {
+                trimmed = "/" + trimmed;
+            }
+            return trimmed;
+        }
+
+
+        /**
+         * 编译路径为正则：
+         * /api/orders/*      → ^/api/orders(/.*)?$  （匹配所有子路径）
+         * /api/orders        → ^/api/orders$     （精确匹配）
+         * /api/orders/**     → ^/api/orders/.*$  （Spring风格，兼容）
+         */
+        private static Pattern compilePattern(String path) {
+            String regex;
+            if (path.endsWith("/**")) {
+                // Spring 风格通配符
+                regex = "^" + Pattern.quote(path.substring(0, path.length() - 3)) + "(/.*)?$";
+            } else if (path.endsWith("/*")) {
+                // 单层通配符
+                regex = "^" + Pattern.quote(path.substring(0, path.length() - 2)) + "(/.*)?$";
+            } else {
+                // 精确匹配
+                regex = "^" + Pattern.quote(path) + "$";
+            }
+            return Pattern.compile(regex);
         }
     }
 }

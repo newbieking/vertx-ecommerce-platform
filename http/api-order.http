@@ -1,0 +1,61 @@
+### 网关地址（统一变量）
+@gatewayHost = http://localhost:8080
+
+### 1. 用户注册（无需认证）
+POST {{gatewayHost}}/api/users/register
+Content-Type: application/json
+
+{
+  "username": "bob",
+  "email": "bob@example.com",
+  "password": "123456"
+}
+
+> {%
+    client.global.set("TOKEN", response.body.data.token);
+%}
+
+### 2. 登录获取 Token
+POST {{gatewayHost}}/api/users/login
+Content-Type: application/json
+
+{
+  "email": "bob@example.com",
+  "password": "123456"
+}
+
+> {%
+    client.global.set("TOKEN", response.body.data.token);
+%}
+
+### 3. 创建订单（触发完整 Saga）
+POST {{gatewayHost}}/api/orders
+Content-Type: application/json
+Authorization: Bearer {{TOKEN}}
+
+{
+  "userId": "user-123",
+  "items": [
+    {"sku": "SKU001", "quantity": 2},
+    {"sku": "SKU003", "quantity": 1}
+  ]
+}
+
+> {%
+    // 提取订单ID供后续请求使用
+    if (response.body.data && response.body.data.orderId) {
+        client.global.set("ORDER_ID", response.body.data.orderId);
+    }
+%}
+
+### 4. 查询库存变化（SKU001）
+GET {{gatewayHost}}/api/inventory/SKU001
+Authorization: Bearer {{TOKEN}}
+
+### 5. 查询订单状态
+GET {{gatewayHost}}/api/orders/{{ORDER_ID}}
+Authorization: Bearer {{TOKEN}}
+
+### 6. 测试取消订单（触发补偿）
+POST {{gatewayHost}}/api/orders/{{ORDER_ID}}/cancel
+Authorization: Bearer {{TOKEN}}
